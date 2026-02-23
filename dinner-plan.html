@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成都聚餐地点规划</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        #map_container {
+            width: 100%;
+            height: 100vh;
+        }
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-width: 380px;
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .info-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .user-location {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #1890ff;
+        }
+        .user-location.person-b {
+            border-left-color: #52c41a;
+        }
+        .user-location.person-c {
+            border-left-color: #fa8c16;
+        }
+        .user-location h4 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .user-location p {
+            font-size: 12px;
+            color: #666;
+        }
+        .user-location .time {
+            font-size: 12px;
+            color: #1890ff;
+            margin-top: 5px;
+        }
+        .search-box {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        .search-box input:focus {
+            border-color: #1890ff;
+        }
+        .search-box button {
+            width: 100%;
+            padding: 10px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .search-box button:hover {
+            background: #40a9ff;
+        }
+        .result-list {
+            margin-top: 15px;
+        }
+        .result-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .result-item:hover {
+            background: #e6f7ff;
+            transform: translateX(4px);
+        }
+        .result-item h4 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .result-item p {
+            font-size: 12px;
+            color: #666;
+        }
+        .result-item .distance-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .result-item .distance-info span {
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+        .result-item .distance-info .good {
+            background: #f6ffed;
+            color: #52c41a;
+        }
+        .result-item .distance-info .bad {
+            background: #fff2f0;
+            color: #ff4d4f;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .dot-you { background: #1890ff; }
+        .dot-a { background: #52c41a; }
+        .dot-b { background: #fa8c16; }
+        .dot-result { background: #ff4d4f; }
+    </style>
+    <script src="//api.map.baidu.com/api?v=1.0&type=webgl&ak=QnPj2AaJMP3Ws1fJmPULxeGaTuXCHSox"></script>
+</head>
+<body>
+    <div id="map_container"></div>
+    <div id="error-msg" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#ff4d4f;color:white;padding:20px;border-radius:8px;z-index:1000;">
+        地图加载失败，请检查AK或网络
+    </div>
+
+    <div class="info-panel">
+        <h2>成都聚餐地点规划</h2>
+
+        <div class="user-location">
+            <h4>你（龙泉驿区万科高线公园星之境）</h4>
+            <p>地铁2号线可达</p>
+            <div class="time" id="time-you">等待计算...</div>
+        </div>
+
+        <div class="user-location person-b">
+            <h4>朋友A - 李俊岑（高投汇悦府润园）</h4>
+            <p>地铁6号线可达</p>
+            <div class="time" id="time-a">等待计算...</div>
+        </div>
+
+        <div class="user-location person-c">
+            <h4>朋友B（温江区浩瀚路星河WORLD科创城）</h4>
+            <p>地铁4号线可达</p>
+            <div class="time" id="time-b">等待计算...</div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索餐厅/电影院..." value="餐厅 电影院">
+            <button onclick="searchNearby()">搜索候选地点</button>
+        </div>
+
+        <div class="result-list" id="result-list">
+            <div class="loading">点击上方按钮搜索候选地点</div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-dot dot-you"></div>
+            <span>你的位置</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot dot-a"></div>
+            <span>朋友A位置</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot dot-b"></div>
+            <span>朋友B位置</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot dot-result"></div>
+            <span>候选地点</span>
+        </div>
+    </div>
+
+    <script>
+        // 初始化地图 - 必须在页面加载完成后执行
+        var map;
+        var mapReady = false;
+
+        function initMap() {
+            if (typeof BMapGL === 'undefined') {
+                console.log('BMapGL 加载中...');
+                setTimeout(initMap, 100);
+                return;
+            }
+
+            console.log('BMapGL 已加载');
+            map = new BMapGL.Map('map_container');
+            map.centerAndZoom(new BMapGL.Point(104.065, 30.659), 11);
+            map.enableScrollWheelZoom(true);
+            mapReady = true;
+
+            // 开始地理编码
+            geocodeAddress(addresses.you, 'you', '你的位置');
+            geocodeAddress(addresses.friendA, 'friendA', '朋友A');
+            geocodeAddress(addresses.friendB, 'friendB', '朋友B');
+        }
+
+        // 页面加载完成后初始化
+        window.onload = function() {
+            setTimeout(initMap, 500);
+        };
+
+        // 地理编码实例
+        var geo = new BMapGL.Geocoder();
+
+        // 存储三个人的位置坐标
+        var locations = {
+            you: null,
+            friendA: null,
+            friendB: null
+        };
+
+        // 存储公交路线规划实例
+        var transitRoutes = {
+            you: null,
+            friendA: null,
+            friendB: null
+        };
+
+        // 地址列表
+        var addresses = {
+            you: '成都市龙泉驿区万科高线公园星之境',
+            friendA: '成都市高新区高投汇悦府润园',
+            friendB: '成都市温江区浩瀚路星河WORLD科创城'
+        };
+
+        // 标记数组
+        var markers = [];
+
+        // 创建带文本的标注
+        function createMarker(point, title, color) {
+            var marker = new BMapGL.Marker(point);
+            var label = new BMapGL.Label(title, {
+                offset: new BMapGL.Size(20, -10)
+            });
+            label.setStyle({
+                background: 'transparent',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: color
+            });
+            marker.setLabel(label);
+            map.addOverlay(marker);
+            markers.push(marker);
+            return marker;
+        }
+
+        // 地理编码获取坐标
+        function geocodeAddress(address, key, label) {
+            geo.getPoint(address, function(point) {
+                if (point) {
+                    locations[key] = point;
+
+                    // 根据key设置不同颜色
+                    var colors = {
+                        you: '#1890ff',
+                        friendA: '#52c41a',
+                        friendB: '#fa8c16'
+                    };
+
+                    createMarker(point, label, colors[key]);
+                    console.log(label + '坐标:', point.lng, point.lat);
+
+                    // 所有位置都获取完成后，显示位置信息
+                    if (locations.you && locations.friendA && locations.friendB) {
+                        calculateCommuteTimes();
+                        console.log('三个位置已加载完成，请点击搜索按钮');
+                    }
+                } else {
+                    console.error('无法获取地址坐标:', address);
+                }
+            }, '成都市');
+        }
+
+        // 计算通勤时间
+        function calculateCommuteTimes() {
+            // 先显示等待状态，等用户点击搜索后再计算具体地点
+            document.getElementById('time-you').innerHTML = '点击搜索后计算...';
+            document.getElementById('time-a').innerHTML = '点击搜索后计算...';
+            document.getElementById('time-b').innerHTML = '点击搜索后计算...';
+
+            // 调整地图视野
+            setTimeout(function() {
+                map.setViewport([locations.you, locations.friendA, locations.friendB]);
+            }, 1000);
+        }
+
+        // 搜索候选地点（自动寻找最佳中间点）
+        function searchNearby() {
+            console.log('searchNearby called');
+            var resultList = document.getElementById('result-list');
+            resultList.innerHTML = '<div class="loading">正在搜索餐厅...</div>';
+
+            // 确保地图和位置都已准备好
+            if (!map) {
+                console.error('map not ready');
+                resultList.innerHTML = '<div class="loading">地图加载中...</div>';
+                return;
+            }
+
+            if (!locations.you || !locations.friendA || !locations.friendB) {
+                console.log('locations not ready:', locations);
+                resultList.innerHTML = '<div class="loading">位置加载中，请稍候（已有' +
+                    (locations.you ? '1' : '0') + '/3个位置）</div>';
+                return;
+            }
+
+            console.log('Starting search with locations:', locations);
+
+            // 计算三个人的地理中心点
+            var centerLng = (locations.you.lng + locations.friendA.lng + locations.friendB.lng) / 3;
+            var centerLat = (locations.you.lat + locations.friendA.lat + locations.friendB.lat) / 3;
+            var centerPoint = new BMapGL.Point(centerLng, centerLat);
+
+            console.log('中心点:', centerLng, centerLat);
+
+            // 搜索中心点周围的餐厅
+            var searchRadius = 5000;
+            var local = new BMapGL.LocalSearch(map, {
+                renderOptions: { map: map, autoViewport: false },
+                onSearchComplete: function(results) {
+                    console.log('Search complete, status:', local.getStatus(), results);
+                    if (local.getStatus() === BMAP_STATUS_SUCCESS) {
+                        // 获取POI列表
+                        var pois = [];
+                        var num = results.getCurrentNumPois();
+                        for (var i = 0; i < num; i++) {
+                            pois.push(results.getPoi(i));
+                        }
+                        console.log('搜索到 ' + pois.length + ' 个结果');
+                        displayResults(pois);
+                    } else {
+                        resultList.innerHTML = '<div class="loading">搜索失败，请稍后重试（API限流或服务不可用）</div>';
+                    }
+                },
+                onError: function(error) {
+                    console.error('Search error:', error);
+                    resultList.innerHTML = '<div class="loading">搜索出错: ' + error + '</div>';
+                }
+            });
+
+            // 搜索餐厅
+            try {
+                local.searchNearby('餐厅', centerPoint, searchRadius);
+                console.log('searchNearby called successfully');
+            } catch (e) {
+                console.error('Exception in searchNearby:', e);
+                resultList.innerHTML = '<div class="loading">搜索异常: ' + e.message + '</div>';
+            }
+        }
+
+        // 显示搜索结果 - 简化版，减少API调用
+        function displayResults(pois) {
+            var resultList = document.getElementById('result-list');
+
+            if (!pois || pois.length === 0) {
+                resultList.innerHTML = '<div class="loading">未找到合适的地点</div>';
+                return;
+            }
+
+            // 取前10个候选点
+            var candidates = pois.slice(0, 10);
+
+            // 先按距离中心点的远近来排序（减少API调用）
+            var centerLng = (locations.you.lng + locations.friendA.lng + locations.friendB.lng) / 3;
+            var centerLat = (locations.you.lat + locations.friendA.lat + locations.friendB.lat) / 3;
+
+            candidates.forEach(function(poi) {
+                poi._distance = Math.sqrt(
+                    Math.pow(poi.point.lng - centerLng, 2) +
+                    Math.pow(poi.point.lat - centerLat, 2)
+                );
+            });
+            candidates.sort(function(a, b) { return a._distance - b._distance; });
+
+            resultList.innerHTML = '<div class="loading">正在计算通勤时间...</div>';
+
+            // 只计算前5个候选点到三个人的路线（减少API调用：5×3=15次）
+            var calculateCount = Math.min(5, candidates.length);
+            var completed = 0;
+
+            candidates.slice(0, calculateCount).forEach(function(poi, idx) {
+                var item = document.createElement('div');
+                item.className = 'result-item';
+                item.id = 'candidate-' + idx;
+                resultList.appendChild(item);
+
+                // 为这个候选点计算三个人的路线
+                var times = {};
+                var routeCompleted = 0;
+                var totalRoutes = 3;
+
+                ['you', 'friendA', 'friendB'].forEach(function(key) {
+                    if (!locations[key]) {
+                        routeCompleted++;
+                        return;
+                    }
+
+                    var transit = new BMapGL.TransitRoute(map, {
+                        policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                        renderOptions: { map: map, autoViewport: false },
+                        onSearchComplete: function(results) {
+                            routeCompleted++;
+                            if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
+                                var plan = results.getPlan(0);
+                                times[key] = {
+                                    text: plan.getDuration(true),
+                                    minutes: parseInt(plan.getDuration(true).replace('分钟', '')) || 999
+                                };
+                            } else {
+                                times[key] = { text: '未知', minutes: 999 };
+                            }
+
+                            if (routeCompleted === totalRoutes) {
+                                renderCandidateItem(poi, times, idx);
+                                completed++;
+
+                                // 全部完成后更新标题
+                                if (completed === calculateCount) {
+                                    updateResultTitle();
+                                }
+                            }
+                        }
+                    });
+                    transit.search(locations[key], poi.point);
+                });
+            });
+
+            // 显示所有候选点（不计算路线的显示为待计算）
+            candidates.forEach(function(poi, idx) {
+                if (idx >= calculateCount) {
+                    var item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerHTML = '<h4>' + poi.title + '</h4>' +
+                        '<p>' + (poi.address || '') + '</p>' +
+                        '<p style="color:#999;font-size:11px;">点击查看路线</p>';
+                    item.onclick = function() {
+                        map.panTo(poi.point);
+                        map.setZoom(14);
+                    };
+                    resultList.appendChild(item);
+                }
+            });
+
+            // 添加标记
+            candidates.forEach(function(poi, idx) {
+                var marker = new BMapGL.Marker(poi.point);
+                var label = new BMapGL.Label((idx + 1).toString(), {
+                    offset: new BMapGL.Size(10, -10)
+                });
+                label.setStyle({
+                    background: '#1890ff',
+                    color: 'white',
+                    border: 'none',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '11px'
+                });
+                marker.setLabel(label);
+                map.addOverlay(marker);
+                markers.push(marker);
+            });
+
+            // 调整地图视野
+            setTimeout(function() {
+                var points = candidates.map(function(p) { return p.point; });
+                if (locations.you) points.push(locations.you);
+                if (locations.friendA) points.push(locations.friendA);
+                if (locations.friendB) points.push(locations.friendB);
+                map.setViewport(points);
+            }, 500);
+        }
+
+        // 渲染候选结果项
+        function renderCandidateItem(poi, times, index) {
+            var item = document.getElementById('candidate-' + index);
+            if (!item) return;
+
+            var youTime = times.you ? times.you.text : '未知';
+            var aTime = times.friendA ? times.friendA.text : '未知';
+            var bTime = times.friendB ? times.friendB.text : '未知';
+
+            var youMins = times.you ? times.you.minutes : 999;
+            var aMins = times.friendA ? times.friendA.minutes : 999;
+            var bMins = times.friendB ? times.friendB.minutes : 999;
+
+            var maxMins = Math.max(youMins, aMins, bMins);
+            var allWithinHour = maxMins <= 60;
+
+            // 更新标记颜色
+            var marker = markers[index];
+            if (marker && marker.getLabel) {
+                var labelText = allWithinHour ? '✓' : maxMins + '分';
+                marker.getLabel().setContent(labelText);
+                marker.getLabel().setStyle({
+                    background: allWithinHour ? '#52c41a' : '#ff4d4f',
+                    color: 'white',
+                    border: 'none',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '11px'
+                });
+            }
+
+            // 更新HTML
+            item.innerHTML = '<h4>' + poi.title + '</h4>' +
+                '<p>' + (poi.address || '') + '</p>' +
+                '<div class="distance-info">' +
+                '<span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span>' +
+                '<span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span>' +
+                '<span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span>' +
+                '</div>' +
+                '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
+                (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
+
+            // 点击显示路线
+            item.onclick = function() {
+                // 清除之前的路线
+                map.clearOverlays();
+
+                // 重新添加候选人标记
+                for (var m = 0; m < markers.length; m++) {
+                    map.addOverlay(markers[m]);
+                }
+
+                // 显示到该地点的路线
+                showRoutesToDestination(poi);
+            };
+
+            // 存储poi信息供路线显示使用
+            poi._index = index;
+        }
+
+        // 显示到目的地的路线
+        function showRoutesToDestination(poi) {
+            var colors = {
+                you: '#1890ff',
+                friendA: '#52c41a',
+                friendB: '#fa8c16'
+            };
+
+            var labels = {
+                you: '你的路线',
+                friendA: '朋友A路线',
+                friendB: '朋友B路线'
+            };
+
+            // 为每个人规划路线
+            ['you', 'friendA', 'friendB'].forEach(function(key) {
+                if (!locations[key]) return;
+
+                var transit = new BMapGL.TransitRoute(map, {
+                    policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                    renderOptions: {
+                        map: map,
+                        autoViewport: true,
+                        panel: null,
+                        highlightMode: BMAP_HIGHLIGHT_ROUTE
+                    }
+                });
+                transit.search(locations[key], poi.point);
+            });
+
+            // 移动到目标位置
+            map.panTo(poi.point);
+            map.setZoom(13);
+        }
+
+        // 更新结果标题
+        function updateResultTitle() {
+            var resultList = document.getElementById('result-list');
+            var items = resultList.querySelectorAll('.result-item');
+            var suitableCount = 0;
+
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].innerHTML;
+                if (text.indexOf('✓') !== -1) suitableCount++;
+            }
+
+            var infoHtml = '<div style="padding:10px;background:#f0f0f0;border-radius:6px;margin-bottom:10px;font-size:12px;">' +
+                '找到 <strong>' + suitableCount + '</strong> 个满足三人1小时内通勤的地点' +
+                '</div>';
+            resultList.insertAdjacentHTML('afterbegin', infoHtml);
+        }
+
+        // 计算到三个人的路线
+        function calculateRoute(poi, item) {
+            var times = {};
+            var completed = 0;
+
+            // 计算从每个人到该POI的时间
+            ['you', 'friendA', 'friendB'].forEach(function(key, index) {
+                if (!locations[key]) return;
+
+                var transit = new BMapGL.TransitRoute(map, {
+                    policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                    onSearchComplete: function(results) {
+                        completed++;
+                        if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
+                            var plan = results.getPlan(0);
+                            times[key] = plan.getDuration(true);
+                        } else {
+                            times[key] = '未知';
+                        }
+
+                        // 全部完成后显示结果
+                        if (completed === 3) {
+                            renderItem(item, poi, times);
+                        }
+                    }
+                });
+                transit.search(locations[key], poi.point);
+            });
+        }
+
+        // 渲染结果项
+        function renderItem(item, poi, times) {
+            var youTime = times.you || '计算中';
+            var aTime = times.friendA || '计算中';
+            var bTime = times.friendB || '计算中';
+
+            // 判断是否都在1小时内
+            var allWithinHour = true;
+            var timeValues = [youTime, aTime, bTime].filter(function(t) {
+                return typeof t === 'string' && t.includes('分钟');
+            });
+
+            // 点击定位
+            item.onclick = function() {
+                map.panTo(poi.point);
+                map.setZoom(15);
+
+                // 添加结果标记
+                markers.forEach(function(m) {
+                    if (m.getLabel && m.getLabel().content === poi.title) {
+                        m.setAnimation(BMAP_ANIMATION_BOUNCE);
+                        setTimeout(function() {
+                            m.setAnimation(null);
+                        }, 2000);
+                    }
+                });
+            };
+
+            item.innerHTML = "<h4>" + poi.title + "</h4>" +
+                "<p>" + (poi.address || "") + "</p>" +
+                '<div class="distance-info">' +
+                "<span>你: " + youTime + "</span>" +
+                "<span>A: " + aTime + "</span>" +
+                "<span>B: " + bTime + "</span>" +
+                "</div>";
+        }
+
+        // 窗口大小改变时调整地图
+        window.onresize = function() {
+            if (map) map.resize();
+        };
+    </script>
+</body>
+</html>
