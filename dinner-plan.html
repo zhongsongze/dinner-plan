@@ -202,7 +202,7 @@
         </div>
 
         <div class="search-box">
-            <input type="text" id="search-input" placeholder="搜索餐厅/电影院..." value="餐厅 电影院">
+            <input type="text" id="search-input" placeholder="输入关键词：如餐厅、酒店、网吧、电影院" value="餐厅 电影院">
             <button onclick="searchNearby()">搜索候选地点</button>
         </div>
 
@@ -367,7 +367,14 @@
         function searchNearby() {
             console.log('searchNearby called');
             var resultList = document.getElementById('result-list');
-            resultList.innerHTML = '<div class="loading">正在搜索餐厅...</div>';
+            var keyword = document.getElementById('search-input').value.trim() || '餐厅';
+            resultList.innerHTML = '<div class="loading">正在搜索 "' + keyword + '"...</div>';
+
+            // 清除之前的标记
+            markers.forEach(function(m) {
+                map.removeOverlay(m);
+            });
+            markers = [];
 
             // 确保地图和位置都已准备好
             if (!map) {
@@ -419,7 +426,9 @@
 
             // 搜索餐厅
             try {
-                local.searchNearby('餐厅', centerPoint, searchRadius);
+                // 获取用户输入的搜索关键词
+                var keyword = document.getElementById('search-input').value.trim() || '餐厅';
+                local.searchNearby(keyword, centerPoint, searchRadius);
                 console.log('searchNearby called successfully');
             } catch (e) {
                 console.error('Exception in searchNearby:', e);
