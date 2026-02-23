@@ -486,6 +486,25 @@
                 resultList.appendChild(item);
             });
 
+            // 添加标记
+            candidates.forEach(function(poi, idx) {
+                var marker = new BMapGL.Marker(poi.point);
+                var label = new BMapGL.Label((idx + 1).toString(), {
+                    offset: new BMapGL.Size(10, -10)
+                });
+                label.setStyle({
+                    background: '#1890ff',
+                    color: 'white',
+                    border: 'none',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '11px'
+                });
+                marker.setLabel(label);
+                map.addOverlay(marker);
+                markers.push(marker);
+            });
+
             // 调整地图视野
             setTimeout(function() {
                 var points = candidates.map(function(p) { return p.point; });
@@ -617,25 +636,6 @@
                 '</div>' +
                 '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
                 (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
-
-            // 添加标记
-            candidates.forEach(function(poi, idx) {
-                var marker = new BMapGL.Marker(poi.point);
-                var label = new BMapGL.Label((idx + 1).toString(), {
-                    offset: new BMapGL.Size(10, -10)
-                });
-                label.setStyle({
-                    background: '#1890ff',
-                    color: 'white',
-                    border: 'none',
-                    padding: '2px 6px',
-                    borderRadius: '10px',
-                    fontSize: '11px'
-                });
-                marker.setLabel(label);
-                map.addOverlay(marker);
-                markers.push(marker);
-            });
         }
 
         // 渲染候选结果项（保留用于兼容）
