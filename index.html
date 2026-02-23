@@ -452,9 +452,16 @@
             var data = urlParams.get('data');
             if (data) {
                 try {
-                    // Base64 解码 + JSON 解析
-                    var jsonStr = atob(data);
+                    // Base64 解码 + JSON 解析（处理中文）
+                    var jsonStr = decodeURIComponent(atob(data).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
                     friends = JSON.parse(jsonStr);
+
+                    // 重新生成 ID
+                    friends.forEach(function(f, index) {
+                        f.id = 'friend_' + Date.now() + '_' + index;
+                    });
 
                     // 初始化 locations
                     friends.forEach(function(f) {
@@ -487,9 +494,11 @@
                 };
             });
 
-            // JSON 编码 + Base64 编码
+            // JSON 编码 + Base64 编码（处理中文）
             var jsonStr = JSON.stringify(shareData);
-            var encoded = btoa(jsonStr);
+            var encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+                return String.fromCharCode('0x' + p1);
+            }));
 
             // 生成完整 URL
             var baseUrl = window.location.href.split('?')[0];
