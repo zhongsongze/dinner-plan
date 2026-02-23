@@ -384,11 +384,24 @@
         function deleteFriend(id) {
             if (!confirm('确定要删除这位朋友吗？')) return;
 
+            // 清除所有现有标记
+            markers.forEach(function(m) {
+                map.removeOverlay(m);
+            });
+            markers = [];
+
             // 从数组中移除
             friends = friends.filter(function(f) { return f.id !== id; });
 
             // 从 locations 中移除
             delete locations[id];
+
+            // 重新添加剩下朋友的标记
+            friends.forEach(function(f) {
+                if (locations[f.id]) {
+                    createMarker(locations[f.id], f.name, f.color);
+                }
+            });
 
             // 重新生成 UI
             generateFriendsUI();
