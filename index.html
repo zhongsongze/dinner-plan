@@ -465,6 +465,9 @@
             var data = urlParams.get('data');
             if (data) {
                 try {
+                    // URL 解码（处理 URL 特殊字符）
+                    data = decodeURIComponent(data);
+
                     var jsonStr;
                     try {
                         // 尝试 Base64 解码
