@@ -467,12 +467,19 @@
                 try {
                     var jsonStr;
                     try {
-                        // 先尝试新编码方式
-                        jsonStr = decodeURIComponent(escape(atob(data)));
-                    } catch (e1) {
-                        // 再尝试旧编码方式
+                        // 尝试 Base64 解码
                         jsonStr = atob(data);
+                        // 尝试 URI 解码
+                        try {
+                            jsonStr = decodeURIComponent(escape(jsonStr));
+                        } catch (e) {
+                            // 如果失败，保持原样
+                        }
+                    } catch (e1) {
+                        console.error('Base64解码失败:', e1);
+                        throw new Error('无效的分享链接');
                     }
+
                     friends = JSON.parse(jsonStr);
 
                     // 重新生成 ID
