@@ -130,6 +130,25 @@
         .add-friend-box button:hover {
             background: #73d13d;
         }
+        .user-location {
+            position: relative;
+        }
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 2px 8px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .delete-btn:hover {
+            opacity: 1;
+        }
         .result-list {
             margin-top: 15px;
         }
@@ -301,13 +320,11 @@
             var legendHtml = '';
 
             friends.forEach(function(f, index) {
-                var cssClass = index === 0 ? '' : (index === 1 ? 'person-b' : 'person-c');
-                var colorVar = 'dot-' + f.id;
-
-                // 生成朋友位置 HTML
-                friendsHtml += '<div class="user-location ' + cssClass + '" style="border-left-color:' + f.color + '">' +
+                // 生成朋友位置 HTML（带删除按钮）
+                friendsHtml += '<div class="user-location" style="border-left-color:' + f.color + '">' +
                     '<h4>' + f.name + '（' + f.address + '）</h4>' +
                     '<div class="time" id="time-' + f.id + '">等待计算...</div>' +
+                    '<button class="delete-btn" onclick="deleteFriend(\'' + f.id + '\')">删除</button>' +
                     '</div>';
 
                 // 生成图例 HTML
@@ -327,6 +344,28 @@
             legendContainer.innerHTML = legendHtml;
         }
 
+        // 删除朋友
+        function deleteFriend(id) {
+            if (!confirm('确定要删除这位朋友吗？')) return;
+
+            // 从数组中移除
+            friends = friends.filter(function(f) { return f.id !== id; });
+
+            // 从 locations 中移除
+            delete locations[id];
+
+            // 重新生成 UI
+            generateFriendsUI();
+
+            // 重新调整地图视野
+            setTimeout(function() {
+                var points = friends.map(function(f) { return locations[f.id]; }).filter(function(p) { return p; });
+                if (points.length > 0) {
+                    map.setViewport(points);
+                }
+            }, 500);
+        }
+
         // 页面加载完成后初始化
         window.onload = function() {
             setTimeout(initMap, 500);
@@ -336,26 +375,8 @@
         var geo = new BMapGL.Geocoder();
 
         // ========== 朋友配置列表 - 在这里修改朋友信息 ==========
-        var friends = [
-            {
-                id: 'you',
-                name: '你',
-                address: '成都市龙泉驿区万科高线公园星之境',
-                color: '#1890ff'
-            },
-            {
-                id: 'friendA',
-                name: '李俊岑',
-                address: '成都市高新区高投汇悦府润园',
-                color: '#52c41a'
-            },
-            {
-                id: 'friendB',
-                name: '朋友B',
-                address: '成都市温江区浩瀚路星河WORLD科创城',
-                color: '#fa8c16'
-            }
-        ];
+        // 默认空列表，请使用上方表单添加朋友
+        var friends = [];
         // =====================================================
 
         // 存储所有人的位置坐标
