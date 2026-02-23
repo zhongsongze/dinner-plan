@@ -183,22 +183,8 @@
     <div class="info-panel">
         <h2>成都聚餐地点规划</h2>
 
-        <div class="user-location">
-            <h4>你（龙泉驿区万科高线公园星之境）</h4>
-            <p>地铁2号线可达</p>
-            <div class="time" id="time-you">等待计算...</div>
-        </div>
-
-        <div class="user-location person-b">
-            <h4>朋友A - 李俊岑（高投汇悦府润园）</h4>
-            <p>地铁6号线可达</p>
-            <div class="time" id="time-a">等待计算...</div>
-        </div>
-
-        <div class="user-location person-c">
-            <h4>朋友B（温江区浩瀚路星河WORLD科创城）</h4>
-            <p>地铁4号线可达</p>
-            <div class="time" id="time-b">等待计算...</div>
+        <div id="friends-container">
+            <!-- 朋友位置将由 JavaScript 动态生成 -->
         </div>
 
         <div class="search-box">
@@ -211,23 +197,8 @@
         </div>
     </div>
 
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-dot dot-you"></div>
-            <span>你的位置</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot dot-a"></div>
-            <span>朋友A位置</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot dot-b"></div>
-            <span>朋友B位置</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot dot-result"></div>
-            <span>候选地点</span>
-        </div>
+    <div class="legend" id="legend-container">
+        <!-- 图例将由 JavaScript 动态生成 -->
     </div>
 
     <script>
@@ -266,10 +237,49 @@
             map.enableScrollWheelZoom(true);
             mapReady = true;
 
+            // 动态生成朋友位置 UI
+            generateFriendsUI();
+
             // 开始地理编码
-            geocodeAddress(addresses.you, 'you', '你的位置');
-            geocodeAddress(addresses.friendA, 'friendA', '朋友A');
-            geocodeAddress(addresses.friendB, 'friendB', '朋友B');
+            // 使用数组初始化所有朋友的位置
+            friends.forEach(function(f) {
+                geocodeAddress(f.address, f.id, f.name);
+            });
+        }
+
+        // 动态生成朋友位置和图例 UI
+        function generateFriendsUI() {
+            var friendsContainer = document.getElementById('friends-container');
+            var legendContainer = document.getElementById('legend-container');
+
+            var friendsHtml = '';
+            var legendHtml = '';
+
+            friends.forEach(function(f, index) {
+                var cssClass = index === 0 ? '' : (index === 1 ? 'person-b' : 'person-c');
+                var colorVar = 'dot-' + f.id;
+
+                // 生成朋友位置 HTML
+                friendsHtml += '<div class="user-location ' + cssClass + '" style="border-left-color:' + f.color + '">' +
+                    '<h4>' + f.name + '（' + f.address + '）</h4>' +
+                    '<div class="time" id="time-' + f.id + '">等待计算...</div>' +
+                    '</div>';
+
+                // 生成图例 HTML
+                legendHtml += '<div class="legend-item">' +
+                    '<div class="legend-dot" style="background:' + f.color + '"></div>' +
+                    '<span>' + f.name + '</span>' +
+                    '</div>';
+            });
+
+            // 添加候选地点图例
+            legendHtml += '<div class="legend-item">' +
+                '<div class="legend-dot" style="background:#ff4d4f"></div>' +
+                '<span>候选地点</span>' +
+                '</div>';
+
+            friendsContainer.innerHTML = friendsHtml;
+            legendContainer.innerHTML = legendHtml;
         }
 
         // 页面加载完成后初始化
@@ -280,26 +290,54 @@
         // 地理编码实例
         var geo = new BMapGL.Geocoder();
 
-        // 存储三个人的位置坐标
-        var locations = {
-            you: null,
-            friendA: null,
-            friendB: null
-        };
+        // ========== 朋友配置列表 - 在这里修改朋友信息 ==========
+        var friends = [
+            {
+                id: 'you',
+                name: '你',
+                address: '成都市龙泉驿区万科高线公园星之境',
+                color: '#1890ff'
+            },
+            {
+                id: 'friendA',
+                name: '李俊岑',
+                address: '成都市高新区高投汇悦府润园',
+                color: '#52c41a'
+            },
+            {
+                id: 'friendB',
+                name: '朋友B',
+                address: '成都市温江区浩瀚路星河WORLD科创城',
+                color: '#fa8c16'
+            }
+        ];
+        // =====================================================
+
+        // 存储所有人的位置坐标
+        var locations = {};
+        friends.forEach(function(f) { locations[f.id] = null; });
 
         // 存储公交路线规划实例
-        var transitRoutes = {
-            you: null,
-            friendA: null,
-            friendB: null
-        };
+        var transitRoutes = {};
+        friends.forEach(function(f) { transitRoutes[f.id] = null; });
 
-        // 地址列表
-        var addresses = {
-            you: '成都市龙泉驿区万科高线公园星之境',
-            friendA: '成都市高新区高投汇悦府润园',
-            friendB: '成都市温江区浩瀚路星河WORLD科创城'
-        };
+        // 获取所有地址
+        function getAddressById(id) {
+            var f = friends.find(function(friend) { return friend.id === id; });
+            return f ? f.address : '';
+        }
+
+        // 获取朋友名字
+        function getNameById(id) {
+            var f = friends.find(function(friend) { return friend.id === id; });
+            return f ? f.name : id;
+        }
+
+        // 获取朋友颜色
+        function getColorById(id) {
+            var f = friends.find(function(friend) { return friend.id === id; });
+            return f ? f.color : '#999';
+        }
 
         // 标记数组
         var markers = [];
@@ -328,21 +366,16 @@
             geo.getPoint(address, function(point) {
                 if (point) {
                     locations[key] = point;
-
-                    // 根据key设置不同颜色
-                    var colors = {
-                        you: '#1890ff',
-                        friendA: '#52c41a',
-                        friendB: '#fa8c16'
-                    };
-
-                    createMarker(point, label, colors[key]);
+                    createMarker(point, label, getColorById(key));
                     console.log(label + '坐标:', point.lng, point.lat);
 
-                    // 所有位置都获取完成后，显示位置信息
-                    if (locations.you && locations.friendA && locations.friendB) {
+                    // 检查是否所有位置都加载完成
+                    var allLoaded = friends.every(function(f) {
+                        return locations[f.id] !== null;
+                    });
+                    if (allLoaded) {
                         calculateCommuteTimes();
-                        console.log('三个位置已加载完成，请点击搜索按钮');
+                        console.log('所有位置已加载完成，请点击搜索按钮');
                     }
                 } else {
                     console.error('无法获取地址坐标:', address);
@@ -352,14 +385,16 @@
 
         // 计算通勤时间
         function calculateCommuteTimes() {
-            // 先显示等待状态，等用户点击搜索后再计算具体地点
-            document.getElementById('time-you').innerHTML = '点击搜索后计算...';
-            document.getElementById('time-a').innerHTML = '点击搜索后计算...';
-            document.getElementById('time-b').innerHTML = '点击搜索后计算...';
+            // 更新每个人的时间显示
+            friends.forEach(function(f) {
+                var el = document.getElementById('time-' + f.id);
+                if (el) el.innerHTML = '点击搜索后计算...';
+            });
 
             // 调整地图视野
             setTimeout(function() {
-                map.setViewport([locations.you, locations.friendA, locations.friendB]);
+                var points = friends.map(function(f) { return locations[f.id]; });
+                map.setViewport(points);
             }, 1000);
         }
 
@@ -383,18 +418,30 @@
                 return;
             }
 
-            if (!locations.you || !locations.friendA || !locations.friendB) {
+            // 检查所有位置是否已加载
+            var allLoaded = friends.every(function(f) {
+                return locations[f.id] !== null;
+            });
+            if (!allLoaded) {
                 console.log('locations not ready:', locations);
+                var loadedCount = friends.filter(function(f) {
+                    return locations[f.id] !== null;
+                }).length;
                 resultList.innerHTML = '<div class="loading">位置加载中，请稍候（已有' +
-                    (locations.you ? '1' : '0') + '/3个位置）</div>';
+                    loadedCount + '/' + friends.length + '个位置）</div>';
                 return;
             }
 
             console.log('Starting search with locations:', locations);
 
-            // 计算三个人的地理中心点
-            var centerLng = (locations.you.lng + locations.friendA.lng + locations.friendB.lng) / 3;
-            var centerLat = (locations.you.lat + locations.friendA.lat + locations.friendB.lat) / 3;
+            // 计算地理中心点
+            var totalLng = 0, totalLat = 0;
+            friends.forEach(function(f) {
+                totalLng += locations[f.id].lng;
+                totalLat += locations[f.id].lat;
+            });
+            var centerLng = totalLng / friends.length;
+            var centerLat = totalLat / friends.length;
             var centerPoint = new BMapGL.Point(centerLng, centerLat);
 
             console.log('中心点:', centerLng, centerLat);
@@ -449,8 +496,13 @@
             var candidates = pois.slice(0, 10);
 
             // 先按距离中心点的远近来排序
-            var centerLng = (locations.you.lng + locations.friendA.lng + locations.friendB.lng) / 3;
-            var centerLat = (locations.you.lat + locations.friendA.lat + locations.friendB.lat) / 3;
+            var totalLng = 0, totalLat = 0;
+            friends.forEach(function(f) {
+                totalLng += locations[f.id].lng;
+                totalLat += locations[f.id].lat;
+            });
+            var centerLng = totalLng / friends.length;
+            var centerLat = totalLat / friends.length;
 
             candidates.forEach(function(poi) {
                 poi._distance = Math.sqrt(
@@ -510,9 +562,9 @@
             // 调整地图视野
             setTimeout(function() {
                 var points = candidates.map(function(p) { return p.point; });
-                if (locations.you) points.push(locations.you);
-                if (locations.friendA) points.push(locations.friendA);
-                if (locations.friendB) points.push(locations.friendB);
+                friends.forEach(function(f) {
+                    if (locations[f.id]) points.push(locations[f.id]);
+                });
                 map.setViewport(points);
             }, 500);
         }
@@ -536,9 +588,10 @@
 
             var times = {};
             var completed = 0;
-            var totalRoutes = 3;
+            var totalRoutes = friends.length;
 
-            ['you', 'friendA', 'friendB'].forEach(function(key) {
+            friends.forEach(function(f) {
+                var key = f.id;
                 if (!locations[key]) {
                     completed++;
                     return;
@@ -651,16 +704,38 @@
 
         // 更新候选点显示路线信息
         function updatePoiItemWithRoute(poi, times, idx, item) {
-            var youMins = times.you ? times.you.minutes : 999;
-            var aMins = times.friendA ? times.friendA.minutes : 999;
-            var bMins = times.friendB ? times.friendB.minutes : 999;
+            // 收集所有人的通勤信息
+            var allMins = [];
+            var allLines = [];
+            var htmlParts = [];
 
-            // 使用分钟数显示
-            var youTime = formatTime(youMins);
-            var aTime = formatTime(aMins);
-            var bTime = formatTime(bMins);
+            friends.forEach(function(f) {
+                var key = f.id;
+                var t = times[key];
+                var mins = t ? t.minutes : 999;
+                var timeStr = formatTime(mins);
+                var lines = t ? (t.lines || '') : '';
 
-            var maxMins = Math.max(youMins, aMins, bMins);
+                allMins.push(mins);
+                allLines.push(lines);
+
+                // 添加路线信息到HTML
+                htmlParts.push('<div><span class="' + (mins <= 60 ? 'good' : 'bad') + '">' + f.name + ': ' + timeStr + '</span></div>');
+                if (lines) {
+                    htmlParts.push('<div style="font-size:10px;color:#666;">' + lines + '</div>');
+                }
+
+                // 在地图上显示路线
+                if (locations[key]) {
+                    var transit = new BMapGL.TransitRoute(map, {
+                        policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                        renderOptions: { map: map, autoViewport: true }
+                    });
+                    transit.search(locations[key], poi.point);
+                }
+            });
+
+            var maxMins = Math.max.apply(null, allMins);
             var allWithinHour = maxMins <= 60;
 
             // 存储maxMins到元素上，用于排序
@@ -670,33 +745,14 @@
             map.panTo(poi.point);
             map.setZoom(13);
 
-            // 显示路线
-            ['you', 'friendA', 'friendB'].forEach(function(key) {
-                if (!locations[key]) return;
-                var transit = new BMapGL.TransitRoute(map, {
-                    policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
-                    renderOptions: { map: map, autoViewport: true }
-                });
-                transit.search(locations[key], poi.point);
-            });
-
             // 更新HTML
-            var youLines = times.you ? (times.you.lines || '') : '';
-            var aLines = times.friendA ? (times.friendA.lines || '') : '';
-            var bLines = times.friendB ? (times.friendB.lines || '') : '';
-
             item.innerHTML = '<h4>' + poi.title + '</h4>' +
                 '<p>' + (poi.address || '') + '</p>' +
                 '<div class="distance-info" style="flex-direction:column;gap:4px;">' +
-                '<div><span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (youLines || '') + '</div>' +
-                '<div><span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (aLines || '') + '</div>' +
-                '<div><span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (bLines || '') + '</div>' +
+                htmlParts.join('') +
                 '</div>' +
                 '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
-                (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
+                (allWithinHour ? '✓ 所有人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
         }
 
         // 渲染候选结果项（保留用于兼容）
@@ -704,15 +760,25 @@
             var item = document.getElementById('candidate-' + index);
             if (!item) return;
 
-            var youTime = times.you ? times.you.text : '未知';
-            var aTime = times.friendA ? times.friendA.text : '未知';
-            var bTime = times.friendB ? times.friendB.text : '未知';
+            // 收集所有人的通勤信息
+            var allMins = [];
+            var htmlParts = [];
 
-            var youMins = times.you ? times.you.minutes : 999;
-            var aMins = times.friendA ? times.friendA.minutes : 999;
-            var bMins = times.friendB ? times.friendB.minutes : 999;
+            friends.forEach(function(f) {
+                var key = f.id;
+                var t = times[key];
+                var mins = t ? t.minutes : 999;
+                var timeStr = formatTime(mins);
+                var lines = t ? (t.lines || '') : '';
 
-            var maxMins = Math.max(youMins, aMins, bMins);
+                allMins.push(mins);
+                htmlParts.push('<div><span class="' + (mins <= 60 ? 'good' : 'bad') + '">' + f.name + ': ' + timeStr + '</span></div>');
+                if (lines) {
+                    htmlParts.push('<div style="font-size:10px;color:#666;">' + lines + '</div>');
+                }
+            });
+
+            var maxMins = Math.max.apply(null, allMins);
             var allWithinHour = maxMins <= 60;
 
             // 更新标记颜色
@@ -730,23 +796,13 @@
                 });
             }
 
-            // 更新HTML - 显示详细路线信息
-            var youLines = times.you ? (times.you.lines || '') : '';
-            var aLines = times.friendA ? (times.friendA.lines || '') : '';
-            var bLines = times.friendB ? (times.friendB.lines || '') : '';
-
             item.innerHTML = '<h4>' + poi.title + '</h4>' +
                 '<p>' + (poi.address || '') + '</p>' +
                 '<div class="distance-info" style="flex-direction:column;gap:4px;">' +
-                '<div><span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (youLines || '') + '</div>' +
-                '<div><span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (aLines || '') + '</div>' +
-                '<div><span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span></div>' +
-                '<div style="font-size:10px;color:#666;">' + (bLines || '') + '</div>' +
+                htmlParts.join('') +
                 '</div>' +
                 '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
-                (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
+                (allWithinHour ? '✓ 所有人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
 
             // 点击显示路线
             item.onclick = function() {
@@ -768,20 +824,9 @@
 
         // 显示到目的地的路线
         function showRoutesToDestination(poi) {
-            var colors = {
-                you: '#1890ff',
-                friendA: '#52c41a',
-                friendB: '#fa8c16'
-            };
-
-            var labels = {
-                you: '你的路线',
-                friendA: '朋友A路线',
-                friendB: '朋友B路线'
-            };
-
             // 为每个人规划路线
-            ['you', 'friendA', 'friendB'].forEach(function(key) {
+            friends.forEach(function(f) {
+                var key = f.id;
                 if (!locations[key]) return;
 
                 var transit = new BMapGL.TransitRoute(map, {
@@ -857,7 +902,8 @@
             var completed = 0;
 
             // 计算从每个人到该POI的时间
-            ['you', 'friendA', 'friendB'].forEach(function(key, index) {
+            friends.forEach(function(f, index) {
+                var key = f.id;
                 if (!locations[key]) return;
 
                 var transit = new BMapGL.TransitRoute(map, {
