@@ -235,6 +235,24 @@
         var map;
         var mapReady = false;
 
+        // 解析通勤时间字符串
+        function parseDurationMinutes(durationStr) {
+            if (!durationStr) return 999;
+            var totalMinutes = 0;
+            // 匹配小时
+            var hourMatch = durationStr.match(/(\d+)小时/);
+            if (hourMatch) {
+                totalMinutes += parseInt(hourMatch[1]) * 60;
+            }
+            // 匹配分钟
+            var minMatch = durationStr.match(/(\d+)分钟/);
+            if (minMatch) {
+                totalMinutes += parseInt(minMatch[1]);
+            }
+            // 如果没有匹配到任何，返回默认值
+            return totalMinutes > 0 ? totalMinutes : 999;
+        }
+
         function initMap() {
             if (typeof BMapGL === 'undefined') {
                 console.log('BMapGL 加载中...');
@@ -436,7 +454,7 @@
             resultList.innerHTML = '<div class="loading">正在计算通勤时间...</div>';
 
             // 只计算前5个候选点到三个人的路线（减少API调用：5×3=15次）
-            var calculateCount = Math.min(5, candidates.length);
+            var calculateCount = Math.min(3, candidates.length);
             var completed = 0;
 
             candidates.slice(0, calculateCount).forEach(function(poi, idx) {
@@ -468,7 +486,7 @@
 
                                 times[key] = {
                                     text: duration,
-                                    minutes: parseInt(duration.replace('分钟', '')) || 999,
+                                    minutes: parseDurationMinutes(duration),
                                     lines: linesTitle
                                 };
                                 console.log(key + ' 路线: ' + linesTitle);
