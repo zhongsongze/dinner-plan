@@ -448,7 +448,7 @@
             // 取前10个候选点
             var candidates = pois.slice(0, 10);
 
-            // 先按距离中心点的远近来排序（减少API调用）
+            // 先按距离中心点的远近来排序
             var centerLng = (locations.you.lng + locations.friendA.lng + locations.friendB.lng) / 3;
             var centerLat = (locations.you.lat + locations.friendA.lat + locations.friendB.lat) / 3;
 
@@ -460,112 +460,165 @@
             });
             candidates.sort(function(a, b) { return a._distance - b._distance; });
 
-            resultList.innerHTML = '<div class="loading">正在计算通勤时间...</div>';
+            // 显示所有候选点，不立即计算路线
+            resultList.innerHTML = '<div style="padding:10px;background:#e6f7ff;border-radius:6px;margin-bottom:10px;font-size:12px;">' +
+                '找到 <strong>' + candidates.length + '</strong> 个候选地点。点击任意地点查看路线详情</div>';
 
-            // 减少候选点数量到5个，避免API限流
-            var calculateCount = Math.min(5, candidates.length);
-            var completed = 0;
+            // 存储候选点供后续使用
+            window.candidates = candidates;
 
-            // 路线缓存 - 避免重复查询相同起点的路线
-            var routeCache = {};
-
-            // 分批处理，每个候选点间隔500ms
-            var batchDelay = 500;
-
-            candidates.slice(0, calculateCount).forEach(function(poi, idx) {
+            // 显示所有候选点
+            candidates.forEach(function(poi, idx) {
                 var item = document.createElement('div');
                 item.className = 'result-item';
                 item.id = 'candidate-' + idx;
+
+                // 显示基本信息
+                item.innerHTML = '<h4>' + poi.title + '</h4>' +
+                    '<p>' + (poi.address || '') + '</p>' +
+                    '<p style="color:#1890ff;font-size:11px;">点击查看路线 →</p>';
+
+                // 点击后计算路线
+                item.onclick = function() {
+                    calculateRouteForPoi(poi, idx, item);
+                };
+
                 resultList.appendChild(item);
-
-                // 为这个候选点计算三个人的路线（带延迟，避免同时发送太多请求）
-                var times = {};
-                var routeCompleted = 0;
-                var totalRoutes = 3;
-
-                // 对每个人规划路线
-                ['you', 'friendA', 'friendB'].forEach(function(key) {
-                    if (!locations[key]) {
-                        routeCompleted++;
-                        return;
-                    }
-
-                    // 创建缓存key（基于起点位置和候选点位置）
-                    var cacheKey = key + '_' + poi.point.lng.toFixed(4) + '_' + poi.point.lat.toFixed(4);
-
-                    // 检查缓存
-                    if (routeCache[cacheKey]) {
-                        times[key] = routeCache[cacheKey];
-                        routeCompleted++;
-                        if (routeCompleted === totalRoutes) {
-                            renderCandidateItem(poi, times, idx);
-                            completed++;
-                            if (completed === calculateCount) {
-                                updateResultTitle();
-                            }
-                        }
-                        return;
-                    }
-
-                    // 延迟发送请求
-                    setTimeout(function() {
-                        var transit = new BMapGL.TransitRoute(map, {
-                            policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
-                            renderOptions: { map: map, autoViewport: false },
-                            onSearchComplete: function(results) {
-                                routeCompleted++;
-                                if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
-                                    var plan = results.getPlan(0);
-                                    if (plan) {
-                                        var duration = plan.getDuration(true);
-                                        var linesTitle = plan.getLinesTitle();
-
-                                        var result = {
-                                            text: duration,
-                                            minutes: parseDurationMinutes(duration),
-                                            lines: linesTitle
-                                        };
-                                        // 存入缓存
-                                        routeCache[cacheKey] = result;
-                                        times[key] = result;
-                                        console.log(key + ' 路线: ' + linesTitle + ', 耗时: ' + duration);
-                                    } else {
-                                        times[key] = { text: '无路线', minutes: 999, lines: '无法规划路线' };
-                                        console.log(key + ' 无法规划路线');
-                                    }
-                                } else {
-                                    times[key] = { text: 'API限流', minutes: 999, lines: '请稍后重试' };
-                                    console.log(key + ' 路线查询失败，状态码: ' + transit.getStatus());
-                                }
-
-                                if (routeCompleted === totalRoutes) {
-                                    renderCandidateItem(poi, times, idx);
-                                    completed++;
-                                    if (completed === calculateCount) {
-                                        updateResultTitle();
-                                    }
-                                }
-                            }
-                        });
-                        transit.search(locations[key], poi.point);
-                    }, idx * batchDelay);
-                });
             });
 
-            // 显示所有候选点（不计算路线的显示为待计算）
-            candidates.forEach(function(poi, idx) {
-                if (idx >= calculateCount) {
-                    var item = document.createElement('div');
-                    item.className = 'result-item';
-                    item.innerHTML = '<h4>' + poi.title + '</h4>' +
-                        '<p>' + (poi.address || '') + '</p>' +
-                        '<p style="color:#999;font-size:11px;">点击查看路线</p>';
-                    item.onclick = function() {
-                        map.panTo(poi.point);
-                        map.setZoom(14);
-                    };
-                    resultList.appendChild(item);
+            // 调整地图视野
+            setTimeout(function() {
+                var points = candidates.map(function(p) { return p.point; });
+                if (locations.you) points.push(locations.you);
+                if (locations.friendA) points.push(locations.friendA);
+                if (locations.friendB) points.push(locations.friendB);
+                map.setViewport(points);
+            }, 500);
+        }
+
+        // 为单个候选点计算路线
+        var routeCache = {}; // 路线缓存
+
+        function calculateRouteForPoi(poi, idx, item) {
+            // 显示加载状态
+            item.innerHTML = '<h4>' + poi.title + '</h4>' +
+                '<p>' + (poi.address || '') + '</p>' +
+                '<p style="color:#1890ff;">正在计算路线...</p>';
+
+            // 清除之前的路线显示
+            map.clearOverlays();
+
+            // 重新添加候选人标记
+            markers.forEach(function(m) {
+                map.addOverlay(m);
+            });
+
+            var times = {};
+            var completed = 0;
+            var totalRoutes = 3;
+
+            ['you', 'friendA', 'friendB'].forEach(function(key) {
+                if (!locations[key]) {
+                    completed++;
+                    return;
                 }
+
+                // 创建缓存key
+                var cacheKey = key + '_' + poi.point.lng.toFixed(4) + '_' + poi.point.lat.toFixed(4);
+
+                // 检查缓存
+                if (routeCache[cacheKey]) {
+                    times[key] = routeCache[cacheKey];
+                    completed++;
+                    if (completed === totalRoutes) {
+                        updatePoiItemWithRoute(poi, times, idx, item);
+                    }
+                    return;
+                }
+
+                // 延迟发送请求，避免并发限流
+                setTimeout(function() {
+                    var transit = new BMapGL.TransitRoute(map, {
+                        policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                        renderOptions: { map: map, autoViewport: false },
+                        onSearchComplete: function(results) {
+                            completed++;
+                            if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
+                                var plan = results.getPlan(0);
+                                if (plan) {
+                                    var duration = plan.getDuration(true);
+                                    var linesTitle = plan.getLinesTitle();
+
+                                    var result = {
+                                        text: duration,
+                                        minutes: parseDurationMinutes(duration),
+                                        lines: linesTitle
+                                    };
+                                    routeCache[cacheKey] = result;
+                                    times[key] = result;
+                                } else {
+                                    times[key] = { text: '无路线', minutes: 999, lines: '无法规划' };
+                                }
+                            } else {
+                                times[key] = { text: 'API限流', minutes: 999, lines: '请重试' };
+                            }
+
+                            if (completed === totalRoutes) {
+                                updatePoiItemWithRoute(poi, times, idx, item);
+                            }
+                        }
+                    });
+                    transit.search(locations[key], poi.point);
+                }, completed * 300);
+            });
+        }
+
+        // 更新候选点显示路线信息
+        function updatePoiItemWithRoute(poi, times, idx, item) {
+            var youTime = times.you ? times.you.text : '未知';
+            var aTime = times.friendA ? times.friendA.text : '未知';
+            var bTime = times.friendB ? times.friendB.text : '未知';
+
+            var youMins = times.you ? times.you.minutes : 999;
+            var aMins = times.friendA ? times.friendA.minutes : 999;
+            var bMins = times.friendB ? times.friendB.minutes : 999;
+
+            var maxMins = Math.max(youMins, aMins, bMins);
+            var allWithinHour = maxMins <= 60;
+
+            // 移动到目标位置
+            map.panTo(poi.point);
+            map.setZoom(13);
+
+            // 显示路线
+            ['you', 'friendA', 'friendB'].forEach(function(key) {
+                if (!locations[key]) return;
+                var transit = new BMapGL.TransitRoute(map, {
+                    policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                    renderOptions: { map: map, autoViewport: true }
+                });
+                transit.search(locations[key], poi.point);
+            });
+
+            // 更新HTML
+            var youLines = times.you ? (times.you.lines || '') : '';
+            var aLines = times.friendA ? (times.friendA.lines || '') : '';
+            var bLines = times.friendB ? (times.friendB.lines || '') : '';
+
+            item.innerHTML = '<h4>' + poi.title + '</h4>' +
+                '<p>' + (poi.address || '') + '</p>' +
+                '<div class="distance-info" style="flex-direction:column;gap:4px;">' +
+                '<div><span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (youLines || '') + '</div>' +
+                '<div><span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (aLines || '') + '</div>' +
+                '<div><span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (bLines || '') + '</div>' +
+                '</div>' +
+                '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
+                (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
+        }
+                });
             });
 
             // 添加标记
@@ -586,18 +639,9 @@
                 map.addOverlay(marker);
                 markers.push(marker);
             });
-
-            // 调整地图视野
-            setTimeout(function() {
-                var points = candidates.map(function(p) { return p.point; });
-                if (locations.you) points.push(locations.you);
-                if (locations.friendA) points.push(locations.friendA);
-                if (locations.friendB) points.push(locations.friendB);
-                map.setViewport(points);
-            }, 500);
         }
 
-        // 渲染候选结果项
+        // 渲染候选结果项（保留用于兼容）
         function renderCandidateItem(poi, times, index) {
             var item = document.getElementById('candidate-' + index);
             if (!item) return;
