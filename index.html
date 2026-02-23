@@ -465,8 +465,14 @@
             var data = urlParams.get('data');
             if (data) {
                 try {
-                    // Base64 解码 + JSON 解析
-                    var jsonStr = decodeURIComponent(escape(atob(data)));
+                    var jsonStr;
+                    try {
+                        // 先尝试新编码方式
+                        jsonStr = decodeURIComponent(escape(atob(data)));
+                    } catch (e1) {
+                        // 再尝试旧编码方式
+                        jsonStr = atob(data);
+                    }
                     friends = JSON.parse(jsonStr);
 
                     // 重新生成 ID
