@@ -149,6 +149,38 @@
         .delete-btn:hover {
             opacity: 1;
         }
+        .share-box {
+            margin-top: 10px;
+        }
+        .share-btn {
+            width: 100%;
+            padding: 10px;
+            background: #722ed1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .share-btn:hover {
+            background: #9254de;
+        }
+        .share-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f0ff;
+            border-radius: 6px;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .share-result input {
+            width: 100%;
+            padding: 6px;
+            margin-top: 6px;
+            border: 1px solid #d3adf7;
+            border-radius: 4px;
+            font-size: 11px;
+        }
         .result-list {
             margin-top: 15px;
         }
@@ -249,6 +281,10 @@
             <input type="text" id="new-friend-name" placeholder="输入名字">
             <input type="text" id="new-friend-address" placeholder="输入地址（如：成都市xx区xx）">
             <button onclick="addNewFriend()">添加</button>
+        </div>
+
+        <div class="share-box">
+            <button onclick="generateShareLink()" class="share-btn">生成分享链接</button>
         </div>
 
         <div class="search-box">
@@ -368,6 +404,8 @@
 
         // 页面加载完成后初始化
         window.onload = function() {
+            // 先尝试从 URL 加载朋友数据
+            loadFromUrl();
             setTimeout(initMap, 500);
         };
 
@@ -407,6 +445,70 @@
 
         // 预设颜色列表
         var colorPalette = ['#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1', '#13c2c2', '#faad14', '#f5222d'];
+
+        // 从 URL 加载朋友数据
+        function loadFromUrl() {
+            var urlParams = new URLSearchParams(window.location.search);
+            var data = urlParams.get('data');
+            if (data) {
+                try {
+                    // Base64 解码 + JSON 解析
+                    var jsonStr = atob(data);
+                    friends = JSON.parse(jsonStr);
+
+                    // 初始化 locations
+                    friends.forEach(function(f) {
+                        locations[f.id] = null;
+                    });
+
+                    // 显示提示
+                    setTimeout(function() {
+                        alert('已加载分享的朋友列表！');
+                    }, 1000);
+                } catch (e) {
+                    console.error('加载分享数据失败:', e);
+                }
+            }
+        }
+
+        // 生成分享链接
+        function generateShareLink() {
+            if (friends.length === 0) {
+                alert('请先添加朋友');
+                return;
+            }
+
+            // 移除不需要的临时数据，只保留必要信息
+            var shareData = friends.map(function(f) {
+                return {
+                    name: f.name,
+                    address: f.address,
+                    color: f.color
+                };
+            });
+
+            // JSON 编码 + Base64 编码
+            var jsonStr = JSON.stringify(shareData);
+            var encoded = btoa(jsonStr);
+
+            // 生成完整 URL
+            var baseUrl = window.location.href.split('?')[0];
+            var shareUrl = baseUrl + '?data=' + encoded;
+
+            // 显示结果
+            var shareBox = document.querySelector('.share-box');
+            var existingResult = shareBox.querySelector('.share-result');
+            if (existingResult) {
+                existingResult.remove();
+            }
+
+            var resultHtml = '<div class="share-result">' +
+                '<strong>分享链接已生成：</strong>' +
+                '<input type="text" value="' + shareUrl + '" readonly onclick="this.select()">' +
+                '<p style="margin-top:6px;color:#666;">复制链接发给朋友即可</p>' +
+                '</div>';
+            shareBox.insertAdjacentHTML('beforeend', resultHtml);
+        }
 
         // 添加新朋友
         function addNewFriend() {
