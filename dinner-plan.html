@@ -463,12 +463,18 @@
                             routeCompleted++;
                             if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
                                 var plan = results.getPlan(0);
+                                var duration = plan.getDuration(true);
+                                var linesTitle = plan.getLinesTitle(); // 获取线路名称
+
                                 times[key] = {
-                                    text: plan.getDuration(true),
-                                    minutes: parseInt(plan.getDuration(true).replace('分钟', '')) || 999
+                                    text: duration,
+                                    minutes: parseInt(duration.replace('分钟', '')) || 999,
+                                    lines: linesTitle
                                 };
+                                console.log(key + ' 路线: ' + linesTitle);
                             } else {
-                                times[key] = { text: '未知', minutes: 999 };
+                                times[key] = { text: '未知', minutes: 999, lines: '查询失败' };
+                                console.log(key + ' 路线查询失败');
                             }
 
                             if (routeCompleted === totalRoutes) {
@@ -562,13 +568,20 @@
                 });
             }
 
-            // 更新HTML
+            // 更新HTML - 显示详细路线信息
+            var youLines = times.you ? (times.you.lines || '') : '';
+            var aLines = times.friendA ? (times.friendA.lines || '') : '';
+            var bLines = times.friendB ? (times.friendB.lines || '') : '';
+
             item.innerHTML = '<h4>' + poi.title + '</h4>' +
                 '<p>' + (poi.address || '') + '</p>' +
-                '<div class="distance-info">' +
-                '<span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span>' +
-                '<span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span>' +
-                '<span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span>' +
+                '<div class="distance-info" style="flex-direction:column;gap:4px;">' +
+                '<div><span class="' + (youMins <= 60 ? 'good' : 'bad') + '">你: ' + youTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (youLines || '') + '</div>' +
+                '<div><span class="' + (aMins <= 60 ? 'good' : 'bad') + '">A: ' + aTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (aLines || '') + '</div>' +
+                '<div><span class="' + (bMins <= 60 ? 'good' : 'bad') + '">B: ' + bTime + '</span></div>' +
+                '<div style="font-size:10px;color:#666;">' + (bLines || '') + '</div>' +
                 '</div>' +
                 '<p style="margin-top:8px;font-size:11px;color:' + (allWithinHour ? '#52c41a' : '#ff4d4f') + '">' +
                 (allWithinHour ? '✓ 三人通勤均在1小时内' : '最长需要' + maxMins + '分钟') + '</p>';
