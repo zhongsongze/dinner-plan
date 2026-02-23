@@ -462,9 +462,15 @@
 
             resultList.innerHTML = '<div class="loading">正在计算通勤时间...</div>';
 
-            // 只计算前5个候选点到三个人的路线（减少API调用：5×3=15次）
-            var calculateCount = Math.min(10, candidates.length);
+            // 减少候选点数量到5个，避免API限流
+            var calculateCount = Math.min(5, candidates.length);
             var completed = 0;
+
+            // 路线缓存 - 避免重复查询相同起点的路线
+            var routeCache = {};
+
+            // 分批处理，每个候选点间隔500ms
+            var batchDelay = 500;
 
             candidates.slice(0, calculateCount).forEach(function(poi, idx) {
                 var item = document.createElement('div');
@@ -472,55 +478,77 @@
                 item.id = 'candidate-' + idx;
                 resultList.appendChild(item);
 
-                // 为这个候选点计算三个人的路线
+                // 为这个候选点计算三个人的路线（带延迟，避免同时发送太多请求）
                 var times = {};
                 var routeCompleted = 0;
                 var totalRoutes = 3;
 
+                // 对每个人规划路线
                 ['you', 'friendA', 'friendB'].forEach(function(key) {
                     if (!locations[key]) {
                         routeCompleted++;
                         return;
                     }
 
-                    var transit = new BMapGL.TransitRoute(map, {
-                        policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
-                        renderOptions: { map: map, autoViewport: false },
-                        onSearchComplete: function(results) {
-                            routeCompleted++;
-                            if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
-                                var plan = results.getPlan(0);
-                                if (plan) {
-                                    var duration = plan.getDuration(true);
-                                    var linesTitle = plan.getLinesTitle();
+                    // 创建缓存key（基于起点位置和候选点位置）
+                    var cacheKey = key + '_' + poi.point.lng.toFixed(4) + '_' + poi.point.lat.toFixed(4);
 
-                                    times[key] = {
-                                        text: duration,
-                                        minutes: parseDurationMinutes(duration),
-                                        lines: linesTitle
-                                    };
-                                    console.log(key + ' 路线: ' + linesTitle + ', 耗时: ' + duration);
-                                } else {
-                                    times[key] = { text: '无路线', minutes: 999, lines: '无法规划路线' };
-                                    console.log(key + ' 无法规划路线');
-                                }
-                            } else {
-                                times[key] = { text: 'API限流', minutes: 999, lines: '请稍后重试' };
-                                console.log(key + ' 路线查询失败，状态码: ' + transit.getStatus());
-                            }
-
-                            if (routeCompleted === totalRoutes) {
-                                renderCandidateItem(poi, times, idx);
-                                completed++;
-
-                                // 全部完成后更新标题
-                                if (completed === calculateCount) {
-                                    updateResultTitle();
-                                }
+                    // 检查缓存
+                    if (routeCache[cacheKey]) {
+                        times[key] = routeCache[cacheKey];
+                        routeCompleted++;
+                        if (routeCompleted === totalRoutes) {
+                            renderCandidateItem(poi, times, idx);
+                            completed++;
+                            if (completed === calculateCount) {
+                                updateResultTitle();
                             }
                         }
-                    });
-                    transit.search(locations[key], poi.point);
+                        return;
+                    }
+
+                    // 延迟发送请求
+                    setTimeout(function() {
+                        var transit = new BMapGL.TransitRoute(map, {
+                            policy: BMAP_TRANSIT_POLICY_LEAST_TIME,
+                            renderOptions: { map: map, autoViewport: false },
+                            onSearchComplete: function(results) {
+                                routeCompleted++;
+                                if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
+                                    var plan = results.getPlan(0);
+                                    if (plan) {
+                                        var duration = plan.getDuration(true);
+                                        var linesTitle = plan.getLinesTitle();
+
+                                        var result = {
+                                            text: duration,
+                                            minutes: parseDurationMinutes(duration),
+                                            lines: linesTitle
+                                        };
+                                        // 存入缓存
+                                        routeCache[cacheKey] = result;
+                                        times[key] = result;
+                                        console.log(key + ' 路线: ' + linesTitle + ', 耗时: ' + duration);
+                                    } else {
+                                        times[key] = { text: '无路线', minutes: 999, lines: '无法规划路线' };
+                                        console.log(key + ' 无法规划路线');
+                                    }
+                                } else {
+                                    times[key] = { text: 'API限流', minutes: 999, lines: '请稍后重试' };
+                                    console.log(key + ' 路线查询失败，状态码: ' + transit.getStatus());
+                                }
+
+                                if (routeCompleted === totalRoutes) {
+                                    renderCandidateItem(poi, times, idx);
+                                    completed++;
+                                    if (completed === calculateCount) {
+                                        updateResultTitle();
+                                    }
+                                }
+                            }
+                        });
+                        transit.search(locations[key], poi.point);
+                    }, idx * batchDelay);
                 });
             });
 
