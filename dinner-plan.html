@@ -454,7 +454,7 @@
             resultList.innerHTML = '<div class="loading">正在计算通勤时间...</div>';
 
             // 只计算前5个候选点到三个人的路线（减少API调用：5×3=15次）
-            var calculateCount = Math.min(3, candidates.length);
+            var calculateCount = Math.min(10, candidates.length);
             var completed = 0;
 
             candidates.slice(0, calculateCount).forEach(function(poi, idx) {
