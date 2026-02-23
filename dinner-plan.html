@@ -462,7 +462,9 @@
 
             // 显示所有候选点，不立即计算路线
             resultList.innerHTML = '<div style="padding:10px;background:#e6f7ff;border-radius:6px;margin-bottom:10px;font-size:12px;">' +
-                '找到 <strong>' + candidates.length + '</strong> 个候选地点。点击任意地点查看路线详情</div>';
+                '找到 <strong>' + candidates.length + '</strong> 个候选地点。点击任意地点查看路线详情</div>' +
+                '<div class="sort-info" style="padding:8px;background:#fff7e6;border-radius:4px;margin-bottom:10px;font-size:11px;">' +
+                '点击地点后会自动按通勤时间排序</div>';
 
             // 存储候选点供后续使用
             window.candidates = candidates;
@@ -584,6 +586,8 @@
 
                             if (completed === totalRoutes) {
                                 updatePoiItemWithRoute(poi, times, idx, item);
+                                // 排序所有已计算的候选点
+                                sortResultItems();
                             }
                         }
                     });
@@ -592,18 +596,75 @@
             });
         }
 
+        // 对结果列表按通勤时间排序
+        function sortResultItems() {
+            var resultList = document.getElementById('result-list');
+            if (!resultList) return;
+
+            var items = [];
+            var calculated = 0;
+
+            // 收集所有已计算的候选点
+            var allItems = resultList.querySelectorAll('.result-item');
+            for (var i = 0; i < allItems.length; i++) {
+                var item = allItems[i];
+                var maxMins = item._maxMins;
+                if (maxMins !== undefined && maxMins < 999) {
+                    calculated++;
+                    items.push({ el: item, maxMins: maxMins });
+                }
+            }
+
+            // 按maxMins排序（时间短的在前）
+            items.sort(function(a, b) {
+                return a.maxMins - b.maxMins;
+            });
+
+            // 重新添加到列表
+            items.forEach(function(obj) {
+                resultList.appendChild(obj.el);
+            });
+
+            // 更新统计信息
+            var suitableCount = items.filter(function(i) { return i.maxMins <= 60; }).length;
+            var totalCalculated = items.length;
+
+            var infoDiv = resultList.querySelector('.sort-info');
+            if (infoDiv) {
+                infoDiv.innerHTML = '已计算 <strong>' + totalCalculated + '</strong> 个地点，其中 <strong>' + suitableCount + '</strong> 个满足1小时通勤';
+            }
+        }
+
+        // 格式化显示时间
+        function formatTime(minutes) {
+            if (minutes >= 999 || minutes <= 0) return '未知';
+            if (minutes >= 60) {
+                var hours = Math.floor(minutes / 60);
+                var mins = minutes % 60;
+                if (mins > 0) {
+                    return hours + '小时' + mins + '分钟';
+                }
+                return hours + '小时';
+            }
+            return minutes + '分钟';
+        }
+
         // 更新候选点显示路线信息
         function updatePoiItemWithRoute(poi, times, idx, item) {
-            var youTime = times.you ? times.you.text : '未知';
-            var aTime = times.friendA ? times.friendA.text : '未知';
-            var bTime = times.friendB ? times.friendB.text : '未知';
-
             var youMins = times.you ? times.you.minutes : 999;
             var aMins = times.friendA ? times.friendA.minutes : 999;
             var bMins = times.friendB ? times.friendB.minutes : 999;
 
+            // 使用分钟数显示
+            var youTime = formatTime(youMins);
+            var aTime = formatTime(aMins);
+            var bTime = formatTime(bMins);
+
             var maxMins = Math.max(youMins, aMins, bMins);
             var allWithinHour = maxMins <= 60;
+
+            // 存储maxMins到元素上，用于排序
+            item._maxMins = maxMins;
 
             // 移动到目标位置
             map.panTo(poi.point);
