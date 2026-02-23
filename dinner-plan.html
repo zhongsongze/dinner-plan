@@ -657,19 +657,52 @@
             map.setZoom(13);
         }
 
-        // 更新结果标题
+        // 更新结果标题并按通勤时间排序
         function updateResultTitle() {
             var resultList = document.getElementById('result-list');
-            var items = resultList.querySelectorAll('.result-item');
+            var items = [];
             var suitableCount = 0;
 
-            for (var i = 0; i < items.length; i++) {
-                var text = items[i].innerHTML;
-                if (text.indexOf('✓') !== -1) suitableCount++;
+            // 收集所有结果项
+            var allItems = resultList.querySelectorAll('.result-item');
+            for (var i = 0; i < allItems.length; i++) {
+                var item = allItems[i];
+                var text = item.innerHTML;
+
+                // 从HTML中提取最长通勤时间
+                var maxTime = 999;
+                var timeMatch = text.match(/最长需要(\d+)分钟/);
+                if (timeMatch) {
+                    maxTime = parseInt(timeMatch[1]);
+                } else if (text.indexOf('✓') !== -1) {
+                    // 如果有✓标记，说明都小于60分钟
+                    var timeSpans = item.querySelectorAll('.distance-info span');
+                    for (var j = 0; j < timeSpans.length; j++) {
+                        var spanText = timeSpans[j].innerHTML;
+                        var minMatch = spanText.match(/(\d+)分钟/);
+                        if (minMatch) {
+                            maxTime = Math.min(maxTime, parseInt(minMatch[1]));
+                        }
+                    }
+                    suitableCount++;
+                }
+
+                items.push({ el: item, maxTime: maxTime });
             }
 
+            // 按最长通勤时间排序（时间短的在前）
+            items.sort(function(a, b) {
+                return a.maxTime - b.maxTime;
+            });
+
+            // 重新排序DOM元素
+            items.forEach(function(obj) {
+                resultList.appendChild(obj.el);
+            });
+
+            // 添加标题
             var infoHtml = '<div style="padding:10px;background:#f0f0f0;border-radius:6px;margin-bottom:10px;font-size:12px;">' +
-                '找到 <strong>' + suitableCount + '</strong> 个满足三人1小时内通勤的地点' +
+                '找到 <strong>' + suitableCount + '</strong> 个满足三人1小时内通勤的地点（按通勤时间排序）' +
                 '</div>';
             resultList.insertAdjacentHTML('afterbegin', infoHtml);
         }
