@@ -490,18 +490,23 @@
                             routeCompleted++;
                             if (transit.getStatus() === BMAP_STATUS_SUCCESS) {
                                 var plan = results.getPlan(0);
-                                var duration = plan.getDuration(true);
-                                var linesTitle = plan.getLinesTitle(); // 获取线路名称
+                                if (plan) {
+                                    var duration = plan.getDuration(true);
+                                    var linesTitle = plan.getLinesTitle();
 
-                                times[key] = {
-                                    text: duration,
-                                    minutes: parseDurationMinutes(duration),
-                                    lines: linesTitle
-                                };
-                                console.log(key + ' 路线: ' + linesTitle);
+                                    times[key] = {
+                                        text: duration,
+                                        minutes: parseDurationMinutes(duration),
+                                        lines: linesTitle
+                                    };
+                                    console.log(key + ' 路线: ' + linesTitle + ', 耗时: ' + duration);
+                                } else {
+                                    times[key] = { text: '无路线', minutes: 999, lines: '无法规划路线' };
+                                    console.log(key + ' 无法规划路线');
+                                }
                             } else {
-                                times[key] = { text: '未知', minutes: 999, lines: '查询失败' };
-                                console.log(key + ' 路线查询失败');
+                                times[key] = { text: 'API限流', minutes: 999, lines: '请稍后重试' };
+                                console.log(key + ' 路线查询失败，状态码: ' + transit.getStatus());
                             }
 
                             if (routeCompleted === totalRoutes) {
