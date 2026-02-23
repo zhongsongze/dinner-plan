@@ -465,8 +465,12 @@
             var data = urlParams.get('data');
             if (data) {
                 try {
-                    // URL 解码（处理 URL 特殊字符）
-                    data = decodeURIComponent(data);
+                    // 处理 URL 编码的 Base64（替换URL安全的字符）
+                    data = data.replace(/-/g, '+').replace(/_/g, '/');
+                    // 补全 Base64 填充
+                    while (data.length % 4) {
+                        data += '=';
+                    }
 
                     var jsonStr;
                     try {
@@ -526,7 +530,7 @@
 
             // JSON 编码 + Base64 编码（处理中文）
             var jsonStr = JSON.stringify(shareData);
-            var encoded = btoa(unescape(encodeURIComponent(jsonStr)));
+            var encoded = btoa(unescape(encodeURIComponent(jsonStr))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
             // 生成完整 URL
             var baseUrl = window.location.href.split('?')[0];
