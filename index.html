@@ -93,6 +93,43 @@
         .search-box button:hover {
             background: #40a9ff;
         }
+        .add-friend-box {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f0f5ff;
+            border-radius: 8px;
+            border: 1px solid #d9e4ff;
+        }
+        .add-friend-box h4 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .add-friend-box input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 6px;
+            outline: none;
+        }
+        .add-friend-box input:focus {
+            border-color: #1890ff;
+        }
+        .add-friend-box button {
+            width: 100%;
+            padding: 8px;
+            background: #52c41a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .add-friend-box button:hover {
+            background: #73d13d;
+        }
         .result-list {
             margin-top: 15px;
         }
@@ -185,6 +222,14 @@
 
         <div id="friends-container">
             <!-- 朋友位置将由 JavaScript 动态生成 -->
+        </div>
+
+        <!-- 添加新朋友表单 -->
+        <div class="add-friend-box">
+            <h4>添加新朋友</h4>
+            <input type="text" id="new-friend-name" placeholder="输入名字">
+            <input type="text" id="new-friend-address" placeholder="输入地址（如：成都市xx区xx）">
+            <button onclick="addNewFriend()">添加</button>
         </div>
 
         <div class="search-box">
@@ -337,6 +382,57 @@
         function getColorById(id) {
             var f = friends.find(function(friend) { return friend.id === id; });
             return f ? f.color : '#999';
+        }
+
+        // 预设颜色列表
+        var colorPalette = ['#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1', '#13c2c2', '#faad14', '#f5222d'];
+
+        // 添加新朋友
+        function addNewFriend() {
+            var nameInput = document.getElementById('new-friend-name');
+            var addressInput = document.getElementById('new-friend-address');
+
+            var name = nameInput.value.trim();
+            var address = addressInput.value.trim();
+
+            if (!name) {
+                alert('请输入名字');
+                return;
+            }
+            if (!address) {
+                alert('请输入地址');
+                return;
+            }
+
+            // 生成唯一 ID
+            var id = 'friend_' + Date.now();
+
+            // 分配颜色
+            var color = colorPalette[friends.length % colorPalette.length];
+
+            // 添加到数组
+            var newFriend = {
+                id: id,
+                name: name,
+                address: address,
+                color: color
+            };
+            friends.push(newFriend);
+
+            // 初始化位置
+            locations[id] = null;
+
+            // 重新生成 UI
+            generateFriendsUI();
+
+            // 地理编码新地址
+            geocodeAddress(address, id, name);
+
+            // 清空输入框
+            nameInput.value = '';
+            addressInput.value = '';
+
+            alert(name + ' 已添加！');
         }
 
         // 标记数组
